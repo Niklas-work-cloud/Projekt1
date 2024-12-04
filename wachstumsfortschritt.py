@@ -2,12 +2,13 @@ import streamlit as st
 from PIL import Image, ImageDraw
 import datetime
 
-# Wachstumsdaten der Lauchzwiebeln
-def get_growth_data(week):
-    # Wachstum in cm pro Woche
+# Wachstumsdaten der Lauchzwiebeln (Woche -> Wachstum in cm)
+def get_growth_data(weeks_passed):
+    # Wachstum in cm pro Woche (Daten sind für Wochen 1 bis 12 angegeben)
     growth_per_week = [0, 1, 3, 5, 8, 12, 15, 20, 25, 30, 35, 40]  # Wachstum in cm
-    if week < len(growth_per_week):
-        return growth_per_week[week - 1]  # Gibt die Höhe der Pflanze für die Woche zurück
+    # Rückgabe der Höhe, wobei das Wachstum für über 12 Wochen begrenzt wird
+    if weeks_passed < len(growth_per_week):
+        return growth_per_week[weeks_passed]  # Gibt die Höhe der Pflanze für die Woche zurück
     else:
         return growth_per_week[-1]  # Maximale Höhe nach Woche 12 (30-40 cm)
 
@@ -56,11 +57,8 @@ def app():
 
     # Berechne, wie viele Wochen seit dem Pflanzdatum vergangen sind
     today = datetime.date.today()
-    weeks_passed = (today - plant_date).days // 7  # Berechne die vergangenen Wochen
-
-    # Wenn weniger als eine Woche vergangen ist, setze die Woche auf 1
-    if weeks_passed < 1:
-        weeks_passed = 1  # Damit es mindestens eine Woche gibt
+    days_passed = (today - plant_date).days  # Berechne die verstrichenen Tage
+    weeks_passed = max(1, days_passed // 7)  # Umwandlung von Tagen in Wochen, aber mindestens Woche 1
 
     # Wenn das Pflanzdatum geändert wird, setzen wir den Fortschritt zurück
     if plant_date != st.session_state.plant_date:

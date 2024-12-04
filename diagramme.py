@@ -1,43 +1,50 @@
 import streamlit as st
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
-import random
+import requests
+
+# URL der API
+API_URL = "http://127.0.0.1:5000"  # Passe dies an die URL deiner API an
 
 # Debugging-Ausgabe hinzufügen
 print("Diagramm-Modul wird geladen.")  # Dies wird in der Konsole ausgegeben
 
-def app():
-    st.title("Diagramme")
-    st.write("Hier befinden sich alle wichtigen Daten.")
+# Funktion zum Abrufen der Sensordaten von der API
+def get_sensor_data():
+    """Holt die Sensordaten von der Flask-API und gibt sie zurück."""
+    try:
+        response = requests.get(f"{API_URL}/get_sensordata")
+        response.raise_for_status()  # Überprüfen, ob die Anfrage erfolgreich war
+        data = response.json()
+        return data
+    except requests.exceptions.RequestException as e:
+        st.error(f"Fehler beim Abrufen der Sensordaten: {e}")
+        return None
 
 # Testdaten für den Wasserstand (in Prozent) und Verlauf über den Tag
-def generate_water_level_data():
+def generate_water_level_data(sensor_data):
     max_volume_liters = 500  # Maximaler Tankinhalt in Litern
-    current_volume_liters = random.uniform(50, max_volume_liters)  # Zufälliger Wasserstand in Litern
-    water_percentage = (current_volume_liters / max_volume_liters) * 100  # Prozentualer Wasserstand
+    current_volume_liters = sensor_data['water_percentage'] * max_volume_liters / 100
+    water_percentage = sensor_data['water_percentage']
     return current_volume_liters, water_percentage, max_volume_liters
 
-def generate_water_level_over_day():
+def generate_water_level_over_day(sensor_data):
     hours = np.arange(0, 24)
-    max_volume_liters = 500
-    water_levels = [random.uniform(50, max_volume_liters) for _ in range(24)]  # Zufällige Wasserstände in Litern
-    water_levels_percentage = [(level / max_volume_liters) * 100 for level in water_levels]
+    water_levels_percentage = [sensor_data['water_percentage'] for _ in range(24)]  # Verwendung von konstantem Wasserstand
     return hours, water_levels_percentage
 
 # Testdaten für den Stromverbrauch
-def generate_power_consumption_data():
-    current_consumption = random.uniform(0.5, 3.0)  # Aktueller Stromverbrauch in kWh
-    return current_consumption
+def generate_power_consumption_data(sensor_data):
+    return sensor_data['power_consumption']
 
-def generate_power_consumption_over_day():
+def generate_power_consumption_over_day(sensor_data):
     hours = np.arange(0, 24)  # Stunden des Tages
-    power_consumption = [random.uniform(0.5, 3.0) for _ in range(24)]  # Zufälliger Stromverbrauch in kWh pro Stunde
+    power_consumption = [sensor_data['power_consumption'] for _ in range(24)]  # Verwendung von konstantem Stromverbrauch
     return hours, power_consumption
 
 # Diagramm für den aktuellen Wasserstand als vertikales Balkendiagramm
-def plot_current_water_level(parameter='percentage'):
-    current_volume_liters, water_percentage, max_volume_liters = generate_water_level_data()
+def plot_current_water_level(sensor_data, parameter='percentage'):
+    current_volume_liters, water_percentage, max_volume_liters = generate_water_level_data(sensor_data)
 
     fig, ax = plt.subplots(figsize=(6, 4))  # Etwas größere Diagrammgröße
     if parameter == 'liters':
@@ -54,8 +61,8 @@ def plot_current_water_level(parameter='percentage'):
     return fig
 
 # Diagramm für den Wasserstand über den Tag verteilt
-def plot_water_level_over_day(parameter='percentage'):
-    hours, water_levels_percentage = generate_water_level_over_day()
+def plot_water_level_over_day(sensor_data, parameter='percentage'):
+    hours, water_levels_percentage = generate_water_level_over_day(sensor_data)
     water_levels_liters = [(level / 100) * 500 for level in water_levels_percentage]  # In Litern umrechnen
 
     fig, ax = plt.subplots(figsize=(6, 4))  # Etwas größere Diagrammgröße
@@ -74,8 +81,8 @@ def plot_water_level_over_day(parameter='percentage'):
     return fig
 
 # Diagramm für den aktuellen Stromverbrauch als Balkendiagramm
-def plot_current_power_consumption(parameter='kWh'):
-    current_consumption = generate_power_consumption_data()
+def plot_current_power_consumption(sensor_data, parameter='kWh'):
+    current_consumption = generate_power_consumption_data(sensor_data)
 
     fig, ax = plt.subplots(figsize=(6, 4))  # Etwas größere Diagrammgröße
     if parameter == 'kWh':
@@ -92,8 +99,8 @@ def plot_current_power_consumption(parameter='kWh'):
     return fig
 
 # Diagramm für den Stromverbrauch über den Tag verteilt (Balkendiagramm)
-def plot_power_consumption_over_day(parameter='kWh'):
-    hours, power_consumption = generate_power_consumption_over_day()
+def plot_power_consumption_over_day(sensor_data, parameter='kWh'):
+    hours, power_consumption = generate_power_consumption_over_day(sensor_data)
     power_consumption_wh = [consumption * 1000 for consumption in power_consumption]  # Umrechnung in Wh
 
     fig, ax = plt.subplots(figsize=(6, 4))  # Etwas größere Diagrammgröße
@@ -115,39 +122,43 @@ def plot_power_consumption_over_day(parameter='kWh'):
 def app():
     st.title("📶 Datenüberwachung")
 
-    # Sidebar Auswahl für die Diagramme
-    st.sidebar.subheader('Diagramm-Parameter')
+    # Sensordaten von der API abrufen
+    sensor_data = get_sensor_data()
 
-    # Auswahl der Diagramme und ihrer Parameter
-    selected_data_water = st.sidebar.radio('Wählen Sie die Wasserstand-Ansicht', ('Aktueller Wasserstand', 'Wasserstand über den Tag'))
-    selected_parameter_water = st.sidebar.selectbox('Wählen Sie die Einheit für Wasserstand', ('Prozent (%)', 'Liter (L)'))
+    if sensor_data:
+        # Sidebar Auswahl für die Diagramme
+        st.sidebar.subheader('Diagramm-Parameter')
 
-    selected_data_power = st.sidebar.radio('Wählen Sie die Stromverbrauch-Ansicht', ('Aktueller Stromverbrauch', 'Stromverbrauch über den Tag'))
-    selected_parameter_power = st.sidebar.selectbox('Wählen Sie die Einheit für Stromverbrauch', ('kWh', 'Wh'))
+        # Auswahl der Diagramme und ihrer Parameter
+        selected_data_water = st.sidebar.radio('Wählen Sie die Wasserstand-Ansicht', ('Aktueller Wasserstand', 'Wasserstand über den Tag'))
+        selected_parameter_water = st.sidebar.selectbox('Wählen Sie die Einheit für Wasserstand', ('Prozent (%)', 'Liter (L)'))
 
-    # Diagramm 1: Aktueller Wasserstand
-    if selected_data_water == 'Aktueller Wasserstand':
-        st.subheader("📊 Aktueller Wasserstand")
-        fig1 = plot_current_water_level(parameter='percentage' if selected_parameter_water == 'Prozent (%)' else 'liters')
-        st.pyplot(fig1)  # Zeige das Diagramm
+        selected_data_power = st.sidebar.radio('Wählen Sie die Stromverbrauch-Ansicht', ('Aktueller Stromverbrauch', 'Stromverbrauch über den Tag'))
+        selected_parameter_power = st.sidebar.selectbox('Wählen Sie die Einheit für Stromverbrauch', ('kWh', 'Wh'))
 
-    # Diagramm 2: Wasserstand über den Tag
-    if selected_data_water == 'Wasserstand über den Tag':
-        st.subheader("📈 Wasserstand über den Tag verteilt")
-        fig2 = plot_water_level_over_day(parameter='percentage' if selected_parameter_water == 'Prozent (%)' else 'liters')
-        st.pyplot(fig2)  # Zeige das Diagramm
+        # Diagramm 1: Aktueller Wasserstand
+        if selected_data_water == 'Aktueller Wasserstand':
+            st.subheader("📊 Aktueller Wasserstand")
+            fig1 = plot_current_water_level(sensor_data, parameter='percentage' if selected_parameter_water == 'Prozent (%)' else 'liters')
+            st.pyplot(fig1)  # Zeige das Diagramm
 
-    # Diagramm 3: Aktueller Stromverbrauch
-    if selected_data_power == 'Aktueller Stromverbrauch':
-        st.subheader("🔌 Aktueller Stromverbrauch")
-        fig3 = plot_current_power_consumption(parameter='kWh' if selected_parameter_power == 'kWh' else 'Wh')
-        st.pyplot(fig3)  # Zeige das Diagramm
+        # Diagramm 2: Wasserstand über den Tag
+        if selected_data_water == 'Wasserstand über den Tag':
+            st.subheader("📈 Wasserstand über den Tag verteilt")
+            fig2 = plot_water_level_over_day(sensor_data, parameter='percentage' if selected_parameter_water == 'Prozent (%)' else 'liters')
+            st.pyplot(fig2)  # Zeige das Diagramm
 
-    # Diagramm 4: Stromverbrauch über den Tag
-    if selected_data_power == 'Stromverbrauch über den Tag':
-        st.subheader("🔌 Stromverbrauch über den Tag verteilt")
-        fig4 = plot_power_consumption_over_day(parameter='kWh' if selected_parameter_power == 'kWh' else 'Wh')
-        st.pyplot(fig4)  # Zeige das Diagramm
+        # Diagramm 3: Aktueller Stromverbrauch
+        if selected_data_power == 'Aktueller Stromverbrauch':
+            st.subheader("🔌 Aktueller Stromverbrauch")
+            fig3 = plot_current_power_consumption(sensor_data, parameter='kWh' if selected_parameter_power == 'kWh' else 'Wh')
+            st.pyplot(fig3)  # Zeige das Diagramm
+
+        # Diagramm 4: Stromverbrauch über den Tag
+        if selected_data_power == 'Stromverbrauch über den Tag':
+            st.subheader("🔌 Stromverbrauch über den Tag verteilt")
+            fig4 = plot_power_consumption_over_day(sensor_data, parameter='kWh' if selected_parameter_power == 'kWh' else 'Wh')
+            st.pyplot(fig4)  # Zeige das Diagramm
 
 # Start der App
 if __name__ == "__main__":
