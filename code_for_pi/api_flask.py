@@ -47,7 +47,7 @@ GPIO.setup(FAN_PIN, GPIO.OUT)
 # Zeitplan-Datenstruktur
 time_schedule = {
     "light": {"start": time(6, 0), "end": time(18, 0)},
-    "pump": {"start": time(22, 0), "end": time(6, 0)},
+    "pump": {"start": time(6, 0), "end": time(18, 0)},
     "fan": {"start": time(6, 0), "end": time(18, 0), "interval": 30, "duration": 5}
 }
 
@@ -106,18 +106,23 @@ def get_sensordata():
     except Exception as e:
         return jsonify({"error": "Fehler beim Abrufen der Sensordaten", "details": str(e)}), 500
 
-@app.route('/control_device', methods=['POST'])
-def control_device():
+@app.route('/manual_control', methods=['POST'])
+def manual_control():
+    """
+    Endpunkt für die manuelle Steuerung von Geräten.
+    """
     try:
         data = request.json
         component = data.get('component')
         action = data.get('action')
 
+        # Überprüfung der Eingaben
         if component not in ['light', 'pump', 'fan']:
             return jsonify({"error": "Ungültige Komponente"}), 400
         if action not in ['on', 'off']:
             return jsonify({"error": "Ungültige Aktion"}), 400
 
+        # Dummy-Schaltung
         if component == "light":
             GPIO.output(LIGHT_PIN, GPIO.HIGH if action == "on" else GPIO.LOW)
         elif component == "pump":
@@ -125,11 +130,15 @@ def control_device():
         elif component == "fan":
             GPIO.output(FAN_PIN, GPIO.HIGH if action == "on" else GPIO.LOW)
 
-        logging.info(f"{component} wurde {action} geschaltet.")
-        return jsonify({"message": f"{component} wurde {action} geschaltet."}), 200
+        # Loggen der Aktion
+        logging.info(f"Manuelle Steuerung: {component} wurde {action} geschaltet.")
+
+        # Erfolgsantwort
+        return jsonify({"message": f"Manuelle Steuerung erfolgreich: {component} wurde {action} geschaltet."}), 200
     except Exception as e:
-        logging.error(f"Fehler bei der Gerätesteuerung: {e}")
-        return jsonify({"error": "Fehler bei der Gerätesteuerung", "details": str(e)}), 500
+        # Fehlerbehandlung und Logging
+        logging.error(f"Fehler bei der manuellen Steuerung: {e}")
+        return jsonify({"error": "Fehler bei der manuellen Steuerung", "details": str(e)}), 500
 
 @app.route('/set_schedule', methods=['POST'])
 def set_schedule():

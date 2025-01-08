@@ -1,5 +1,19 @@
 import streamlit as st
 import requests
+import time
+
+# Funktion zum Abrufen der Sensordaten von der API
+def get_sensor_data():
+    """Holt die Sensordaten von der Flask-API und gibt sie zurück."""
+    API_URL = "http://127.0.0.1:5000"  # API-URL anpassen, falls nötig
+    try:
+        response = requests.get(f"{API_URL}/get_sensordata")
+        response.raise_for_status()  # Überprüfen, ob die Anfrage erfolgreich war
+        data = response.json()
+        return data
+    except requests.exceptions.RequestException as e:
+        st.error(f"Fehler beim Abrufen der Sensordaten: {e}")
+        return None
 
 # Funktion zur Anzeige des Status
 def display_status(component, active):
@@ -22,35 +36,25 @@ def control_mode_switch(component, label):
     )
     st.session_state.control_mode[component] = mode
 
-# Funktion zur Steuerung der Komponente
+# Funktion zur Steuerung der Komponente und Senden von API-Anfragen
 def manual_control(component, label, control_device):
     """Steuert die Komponente manuell (ein- oder ausschalten)."""
     if st.session_state.control_mode.get(component, "automatisch") == "manuell":
         # Button für Einschalten
         if st.button(f"{label} Einschalten", key=f"{component}_on"):
-            try:
-                control_device(component, "on")
-                st.session_state.component_status[component] = True
-            except Exception as e:
-                st.error(f"Fehler beim Steuern des {component}: {e}")
+            # Status direkt im session_state aktualisieren
+            st.session_state.component_status[component] = True
+            # Sende das Signal an die API, um die Komponente einzuschalten
+            control_device(component, "on")
         
         # Button für Ausschalten
         if st.button(f"{label} Ausschalten", key=f"{component}_off"):
-            try:
-                control_device(component, "off")
-                st.session_state.component_status[component] = False
-            except Exception as e:
-                st.error(f"Fehler beim Steuern des {component}: {e}")
+            # Status direkt im session_state aktualisieren
+            st.session_state.component_status[component] = False
+            # Sende das Signal an die API, um die Komponente auszuschalten
+            control_device(component, "off")
     else:
         st.info(f"{label} wird im **automatischen Modus** gesteuert.")
-
-# Funktion zur Alarmierung bei niedrigem Wasserstand
-def check_water_level(water_percentage):
-    """Prüft den Wasserstand und gibt eine Warnung aus, wenn der Wasserstand unter 20% fällt."""
-    if water_percentage < 20:
-        st.warning("⚠️ **Alarm: Wasserstand unter 20%!** Bitte Wasser nachfüllen.")
-    else:
-        st.success("💧 Der Wasserstand ist ausreichend.")
 
 # Haupt-App
 def app(sensor_data, control_device):
@@ -61,21 +65,9 @@ def app(sensor_data, control_device):
     if "control_mode" not in st.session_state:
         st.session_state.control_mode = {"light": "automatisch", "pump": "automatisch", "fan": "automatisch"}
 
-    st.title("🏠Home")
-    st.write("Willkommen im Home-Bereich der Gardening Box!")
+    st.title("🏠 Home")
+    st.write("Willkommen im Home-Bereich der Gardening Box! 🏡")
     st.write("**Hinweis:** Umschalten zwischen Automatisch und Manuell für jede Komponente.")
-
-    if sensor_data:
-        # Zeige Wasserstand
-        st.subheader(f"Wasserstand: {sensor_data['current_volume_liters']} L / {sensor_data['max_volume_liters']} L")
-        st.progress(int(sensor_data["water_percentage"]))  # Zeige den Wasserstand als Fortschrittsbalken
-        check_water_level(sensor_data["water_percentage"])  # Alarm bei niedrigem Wasserstand
-
-        # Zeige Temperatur und Luftfeuchtigkeit
-        st.subheader(f"🌡️ Temperatur: {sensor_data['temperature']} °C")
-        st.subheader(f"💧 Luftfeuchtigkeit: {sensor_data['humidity']} %")
-    else:
-        st.error("Sensordaten konnten nicht abgerufen werden.")
 
     # Steuerung der Komponenten
     for component, label in [("light", "💡 Licht"), ("pump", "💧 Pumpe"), ("fan", "☢ Ventilator")]:
@@ -97,3 +89,36 @@ def app(sensor_data, control_device):
 
         # Trennlinie für Übersichtlichkeit
         st.markdown("---")
+
+# Hauptprogramm
+def main():
+    # Initialisieren der Steuerfunktion
+    def manual_control(component, action):
+        """Steuert ein Gerät basierend auf den API-Befehlen."""
+        try:
+            # API-Endpunkt für manuelle Steuerung verwenden
+            response = requests.post(f"http://127.0.0.1:5000/manual_control", json={"component": component, "action": action})
+            response.raise_for_status()
+            if response.status_code == 200:
+                # Erfolgsnachricht mit dem neuen Format: {component} ist {action}
+                actions_translation = {"on": "eingeschaltet", "off": "ausgeschaltet"}
+                st.success(f"{component} hab {actions_translation[action]}!")
+            else:
+                st.error(f"Fehler beim Steuern des {component}. Antwort: {response.status_code} - {response.text}")
+        except requests.exceptions.RequestException as e:
+            st.error(f"Fehler beim Steuern des {component}: {e}")
+
+    # Abrufen der Sensordaten und App aufrufen
+    while True:
+        sensor_data = get_sensor_data()
+        if sensor_data:
+            app(sensor_data, manual_control)
+        else:
+            st.error("Es konnte keine Verbindung zur API hergestellt werden.")
+        
+        time.sleep(30)  # Wartezeit vor dem nächsten Abruf der Sensordaten (jetzt 30 Sekunden)
+        st.experimental_rerun()  # Wiederhole das Abrufen und die Anzeige der Daten
+
+# Hauptprogramm ausführen
+if __name__ == "__main__":
+    main()

@@ -5,20 +5,20 @@ import diagramme
 import zeitschaltplan
 import wachstumsfortschritt
 from dotenv import load_dotenv
-import requests  # Zum Abrufen der Sensordaten von der Flask-API
+import requests
 
 # Umgebungsvariablen laden
 load_dotenv()
 
 # Flask-API-URL (stellen sicher, dass der Flask-Server läuft)
-API_URL = "http://127.0.0.1:5000"  # Grund-URL zum Abrufen der Daten und Steuern der Geräte
+API_URL = "http://127.0.0.1:5000"
 
 # Funktion zum Abrufen der Sensordaten
 def get_sensor_data():
     """Holt die Sensordaten von der Flask-API und gibt sie zurück."""
     try:
         response = requests.get(f"{API_URL}/get_sensordata")
-        response.raise_for_status()  # Überprüfen, ob die Anfrage erfolgreich war
+        response.raise_for_status()
         data = response.json()
         return data
     except requests.exceptions.RequestException as e:
@@ -26,13 +26,13 @@ def get_sensor_data():
         return None
 
 # Funktion zum Senden von Steuerbefehlen (manuelles Ein-/Ausschalten der Geräte)
-def control_device(component, action):
+def manual_control(component, action):
     """Sendet einen Steuerbefehl an die API, um das Gerät ein- oder auszuschalten."""
     try:
-        response = requests.post(f"{API_URL}/control_device", json={"component": component, "action": action})
-        response.raise_for_status()  # Überprüfen, ob die Anfrage erfolgreich war
+        response = requests.post(f"{API_URL}/manual_control", json={"component": component, "action": action})
+        response.raise_for_status()
         if response.status_code == 200:
-            st.success(f"{component} wurde {action}!")
+            st.success(f"{component} is {action}!")
         else:
             st.error(f"Fehler beim Steuern des {component}.")
     except requests.exceptions.RequestException as e:
@@ -67,22 +67,18 @@ class MultiApp:
                     "nav-link-selected": {"background-color": "#02ab21"},
                 },
             )
-
+        
+        st.sidebar.markdown("## 🌿 Lauchzwiebel 🪴")
+        
         # Sensordaten abrufen
         sensor_data = get_sensor_data()
 
-        if sensor_data:
-            # Zeige die aktuellen Sensordaten in der Sidebar oder auf der Startseite
-            st.sidebar.subheader("Aktuelle Sensordaten")
-            st.sidebar.write(f"Temperatur: {sensor_data.get('temperature')} °C")
-            st.sidebar.write(f"Luftfeuchtigkeit: {sensor_data.get('humidity')} %")
-            st.sidebar.write(f"Wasserstand: {sensor_data.get('water_percentage')} %")
-        else:
-            st.sidebar.write("Keine Sensordaten verfügbar.")
-
         # Aufruf der entsprechenden App-Funktion je nach Auswahl
         if app == "Home":
-            home.app(sensor_data, control_device)  # Übergabe der Sensordaten und Steuerfunktion
+            if sensor_data:  # Überprüfen, ob Sensordaten erfolgreich abgerufen wurden
+                home.app(sensor_data, manual_control)  # Übergebe sowohl Sensordaten als auch Steuerfunktion
+            else:
+                st.error("Es konnten keine Sensordaten abgerufen werden.")
         elif app == "Diagramme":
             diagramme.app()
         elif app == "Zeitschaltplan":

@@ -1,0 +1,12 @@
+{
+    "current_volume_liters": 170.59,
+    "fan_status": "off",
+    "humidity": 74.43,
+    "light_status": "on",
+    "max_volume_liters": 500,
+    "power_consumption": 115.0,
+    "pump_status": "off",
+    "soil_moisture": 82.0,
+    "temperature": 20.13,
+    "water_percentage": 34.12
+}

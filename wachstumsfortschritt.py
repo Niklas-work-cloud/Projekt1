@@ -32,6 +32,20 @@ def create_finished_image():
     plant_height_cm = 40  # Maximale Höhe der Pflanze
     return create_growth_image(plant_height_cm)
 
+# Erstelle Rang und Upgrade basierend auf dem Level
+def get_rank_and_upgrades(level):
+    """Gibt Rang und Upgrades basierend auf dem aktuellen Level zurück."""
+    ranks = {
+        0: ("Anfänger", "Kein Upgrade verfügbar."),
+        1: ("Anfänger", "Erde Upgrade: Schnellere Keimung."),
+        2: ("Fortgeschrittener Gärtner", "Pflanzen Upgrade: Schnellere Wachstumsrate."),
+        3: ("Fortgeschrittener Gärtner", "Licht Upgrade: Höhere Ernteerträge."),
+        4: ("Experte", "Garten Upgrade: Zusätzliche Pflanzen auf einmal."),
+        5: ("Gärtner Legende", "Automatisierung: Deine Pflanzen wachsen mit der Zeit!"),   
+    }
+    # Rückgabe von Rang und Upgrade
+    return ranks.get(level, ("Gärtner Legende", "Kein Upgrade verfügbar."))
+
 # Haupt-App-Funktion
 def app():
     st.title("🌱 Wachstumsfortschritt der Lauchzwiebeln")
@@ -42,6 +56,10 @@ def app():
     
     # Anzeige des Level-Fortschritts in der Sidebar
     st.sidebar.header(f"Level: {st.session_state.level}")
+
+    # Anzeige des Rangs und Upgrades
+    rank, upgrade = get_rank_and_upgrades(st.session_state.level)
+    st.sidebar.subheader(f"Rang: {rank}")
 
     # Historische Daten initialisieren, falls nicht vorhanden
     if "history" not in st.session_state:

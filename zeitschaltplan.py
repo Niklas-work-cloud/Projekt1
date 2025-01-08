@@ -17,7 +17,7 @@ def send_schedule_to_api(component, schedule_data):
     try:
         response = requests.post(API_BASE_URL + API_ENDPOINT_SCHEDULE, json=data)
         if response.status_code == 200:
-            st.success(f"Schedule for {component} successfully updated.")
+            st.success(f"Zeitplan für {component} erfolgreich aktualisiert.")
         else:
             st.error(f"Fehler bei der Aktualisierung des Zeitplans: {response.text}")
     except requests.exceptions.RequestException as e:
