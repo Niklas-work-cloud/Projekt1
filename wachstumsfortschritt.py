@@ -5,12 +5,12 @@ import datetime
 # Wachstumsdaten der Lauchzwiebeln (Woche -> Wachstum in cm)
 def get_growth_data(weeks_passed):
     # Wachstum in cm pro Woche (Daten sind für Wochen 1 bis 12 angegeben)
-    growth_per_week = [0, 1, 3, 5, 8, 12, 15, 20, 25, 30, 35, 40]  # Wachstum in cm
+    growth_per_week = [0, 1, 2, 4, 6, 8, 10, 12, 14, 16, 20, 25]  # Wachstum in cm
     # Rückgabe der Höhe, wobei das Wachstum für über 12 Wochen begrenzt wird
     if weeks_passed < len(growth_per_week):
         return growth_per_week[weeks_passed]  # Gibt die Höhe der Pflanze für die Woche zurück
     else:
-        return growth_per_week[-1]  # Maximale Höhe nach Woche 12 (30-40 cm)
+        return growth_per_week[-1]  # Maximale Höhe nach Woche 12 (25 cm)
 
 # Erstelle das Bild der Pflanze basierend auf der Höhe
 def create_growth_image(plant_height_cm):
@@ -19,7 +19,7 @@ def create_growth_image(plant_height_cm):
     draw = ImageDraw.Draw(img)
     
     # Umwandlung der Höhe von cm in Pixel
-    plant_height_pixels = int(plant_height_cm * 7)  # Skalierung von cm zu Pixeln
+    plant_height_pixels = int(plant_height_cm * 12)  # Skalierung von cm zu Pixeln (angepasst)
     
     # Pflanze zeichnen (grünes Rechteck)
     plant_position = (50, img_size[1] - plant_height_pixels)  # Position der Pflanze
@@ -29,7 +29,7 @@ def create_growth_image(plant_height_cm):
 
 # Erstelle das Bild der fertigen Pflanze (maximale Größe)
 def create_finished_image():
-    plant_height_cm = 40  # Maximale Höhe der Pflanze
+    plant_height_cm = 25  # Maximale Höhe der Pflanze
     return create_growth_image(plant_height_cm)
 
 # Erstelle Rang und Upgrade basierend auf dem Level
@@ -100,7 +100,7 @@ def app():
         st.write(f"Die Pflanze ist aktuell {plant_height_cm} cm hoch.")
     
     with col2:
-        st.image(finished_image, caption="Fertige Lauchzwiebel (maximale Größe: 40 cm)", width=150)
+        st.image(finished_image, caption="Fertige Lauchzwiebel (maximale Größe: 25 cm)", width=150)
         st.write("Die Lauchzwiebel ist in Woche 12 vollständig gewachsen.")
 
     # Zeige aktuelle Woche und Fortschritt an
