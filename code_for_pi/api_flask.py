@@ -61,9 +61,9 @@ def str_to_time(t_str):
 # Simulierte Sensordaten
 def read_sensors():
     try:
-        current_volume_liters = random.uniform(50, 500)
+        water_level = random.uniform(50, 500)
         max_volume_liters = 500
-        water_percentage = (current_volume_liters / max_volume_liters) * 100
+        water_percentage = (water_level/ max_volume_liters) * 100
 
         temperature = random.uniform(18, 30)
         humidity = random.uniform(40, 80)
@@ -82,7 +82,7 @@ def read_sensors():
         GPIO.output(FAN_PIN, GPIO.HIGH if fan_status == "on" else GPIO.LOW)
 
         return {
-            "current_volume_liters": round(current_volume_liters, 2),
+            "water_level": round(water_level, 2),
             "max_volume_liters": max_volume_liters,
             "water_percentage": round(water_percentage, 2),
             "temperature": round(temperature, 2),

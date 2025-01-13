@@ -51,12 +51,12 @@ class MultiApp:
 
     def run(self):
         with st.sidebar:
-            st.sidebar.image("images/Grow_smart.png")
+            st.sidebar.image("images/logo_neu.png")
             st.markdown("---")
 
             app = option_menu(
                 menu_title="🌱 Gardening Box",
-                options=["Home", "Diagramme", "Zeitschaltplan", "Wachstumsfortschritt"],
+                options=["Home", "Aktuelle Daten", "Zeitschaltplan", "Fortschritt"],
                 icons=["house-fill", "📊", "⏱️", "🌱"],
                 menu_icon="🌱",
                 default_index=0,
@@ -79,19 +79,19 @@ class MultiApp:
                 home.app(sensor_data, manual_control)  # Übergebe sowohl Sensordaten als auch Steuerfunktion
             else:
                 st.error("Es konnten keine Sensordaten abgerufen werden.")
-        elif app == "Diagramme":
+        elif app == "Aktuelle Daten":
             diagramme.app()
         elif app == "Zeitschaltplan":
             zeitschaltplan.app()
-        elif app == "Wachstumsfortschritt":
+        elif app == "Fortschritt":
             wachstumsfortschritt.app()
 
 # Hauptprogramm
 if __name__ == "__main__":
     app = MultiApp()
     app.add_app("Home", home.app)
-    app.add_app("Diagramme", diagramme.app)
+    app.add_app("Aktuelle Daten", diagramme.app)
     app.add_app("Zeitschaltplan", zeitschaltplan.app)
-    app.add_app("Wachstumsfortschritt", wachstumsfortschritt.app)
+    app.add_app("Fortschritt", wachstumsfortschritt.app)
 
     app.run()

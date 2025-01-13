@@ -48,7 +48,7 @@ def get_rank_and_upgrades(level):
 
 # Haupt-App-Funktion
 def app():
-    st.title("🌱 Wachstumsfortschritt der Lauchzwiebeln")
+    st.title("🌱 Wachstumsfortschritt")
 
     # Anzeige des Level in der Sidebar
     if "level" not in st.session_state:

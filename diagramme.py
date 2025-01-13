@@ -15,39 +15,39 @@ def get_sensor_data():
         st.error(f"Fehler beim Abrufen der Sensordaten: {e}")
         return None
 
-# Funktion zur Anzeige von Temperatur und Feuchtigkeit
-def display_temperature_humidity(sensor_data):
-    """Zeigt die Temperatur und Luftfeuchtigkeit an."""
-    st.subheader(f"🌡️ Temperatur: {sensor_data['temperature']} °C")
-    st.subheader(f"💧 Luftfeuchtigkeit: {sensor_data['humidity']} %")
-
 # Diagramm für den aktuellen Stromverbrauch
 def plot_current_power_consumption(sensor_data):
     """Erstellt das Diagramm für den aktuellen Stromverbrauch"""
-    current_consumption = sensor_data['power_consumption']
+    current_consumption_kWh = sensor_data['power_consumption']
+    
+    # Umrechnung von kWh in W/h (1000 W/h = 1 kWh)
+    current_consumption_watt_hour = current_consumption_kWh * 1000
 
     fig, ax = plt.subplots(figsize=(6, 4))
-    ax.bar(['Aktueller Stromverbrauch'], [current_consumption], color='#2ca02c')
-    ax.set_ylim(0, 5)  # Optional: Anpassen der Y-Achse
-    ax.set_ylabel('Stromverbrauch (kWh)')
-    ax.set_title(f"Aktueller Stromverbrauch: {current_consumption:.2f} kWh")
+    ax.bar(['Aktueller Stromverbrauch'], [current_consumption_watt_hour], color='#2ca02c')
+    ax.set_ylim(0, 5000)  # Optional: Anpassen der Y-Achse auf die erwarteten Werte
+    ax.set_ylabel('Stromverbrauch (W/h)')
+    ax.set_title(f"Aktueller Stromverbrauch: {current_consumption_watt_hour:.0f} W/h")
     return fig
 
 # Diagramm für den Wasserstand (in Prozent)
 def plot_water_level(sensor_data):
     """Erstellt das Diagramm für den Wasserstand"""
-    water_percentage = sensor_data["water_percentage"]
+    water_level = sensor_data["water_level"]
 
     fig, ax = plt.subplots(figsize=(6, 4))
-    ax.bar(['Wasserstand'], [water_percentage], color='#1f77b4')
+    ax.bar(['Wasserstand'], [water_level], color='#1f77b4')
     ax.set_ylim(0, 100)
     ax.set_ylabel('Wasserstand in %')
-    ax.set_title(f"Wasserstand: {water_percentage:.1f}%")
+    ax.set_title(f"Wasserstand: {water_level:.1f}%")
     return fig
 
 # Streamlit App
 def app():
-    st.title("📶 Datenüberwachung")
+    st.title("📶 Aktuelle Daten")
+    
+    # Hinweis zur maximalen Kapazität des Wasserstands
+    st.write("Der Wasserstand wird in Prozent angezeigt. 100% entsprechen 6 Litern Wasser.")
 
     # Button, um die Daten zu aktualisieren
     if st.button("Daten aktualisieren"):
@@ -67,10 +67,6 @@ def app():
             power_consumption_container.subheader("🔌 Aktueller Stromverbrauch")
             fig2 = plot_current_power_consumption(sensor_data)
             power_consumption_container.pyplot(fig2)
-
-            # Diagramm für Temperatur und Luftfeuchtigkeit
-            temperature_humidity_container = st.empty()
-            display_temperature_humidity(sensor_data)
         else:
             st.error("Sensordaten konnten nicht abgerufen werden.")
 
