@@ -4,7 +4,6 @@ import RPi.GPIO as GPIO
 import spidev
 import time
 from datetime import datetime
-import Adafruit_DHT  # DHT-Sensor-Bibliothek
 import logging
 from threading import Thread
 import requests  # Zum Senden der Daten an die API
@@ -16,10 +15,11 @@ CORS(app)
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # GPIO-Pin-Konfiguration
-LIGHT_PIN = 17
-PUMP_PIN = 27
-FAN_PIN = 22
+LIGHT_PIN = 19
+PUMP_PIN = 26
+FAN_PIN = 13
 
+#GPIO Setup
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(LIGHT_PIN, GPIO.OUT)
 GPIO.setup(PUMP_PIN, GPIO.OUT)
@@ -29,10 +29,6 @@ GPIO.setup(FAN_PIN, GPIO.OUT)
 spi = spidev.SpiDev()
 spi.open(0, 0)  # Bus 0, Gerät 0
 spi.max_speed_hz = 1000000
-
-# DHT Sensor Konfiguration
-DHT_SENSOR = Adafruit_DHT.DHT22  # DHT11 oder DHT22
-DHT_PIN = 4  # GPIO-Pin, an dem der DHT-Sensor angeschlossen ist
 
 # Globale Variablen für Zeitpläne und manuelle Steuerung
 schedule = {
@@ -59,24 +55,48 @@ def read_adc(channel):
 
 def get_soil_moisture():
     soil_value = read_adc(0)  # Kanal 0 ist für Bodenfeuchtigkeit
-    return (soil_value / 1023.0) * 100
-
+    if soil_value > 700:
+        return 0
+    elif soil_value < 310:
+        return 100
+    else:
+        # Linear interpolieren, um den Wert zwischen 0% und 100% zu berechnen
+        return ((700 - soil_value) / (700 - 310)) * 100
+    
 def get_water_level():
     water_value = read_adc(1)  # Kanal 1 ist für den Wasserstand
-    return (water_value / 1023.0) * 100
-
-def get_temperature_humidity():
-    humidity, temperature = Adafruit_DHT.read_retry(DHT_SENSOR, DHT_PIN)
-    if humidity is not None and temperature is not None:
-        return round(temperature, 2), round(humidity, 2)
+    if water_value < 0:
+        return 0
+    elif water_value > 600:
+        return 100
     else:
-        logging.error("Fehler beim Auslesen des DHT-Sensors")
-        return None, None
+        return (water_value / 600.0) * 100
+    
+def get_power_consumption():
+    adc_value = read_adc(2)  # Kanal 2 für den ACS712 am MCP3008
+    
+    # Umrechnung des ADC-Werts in eine Spannung (0-5V)
+    voltage = (adc_value / 1023.0) * 5.0
+    
+    # Berechnung des Stroms in Ampere (ACS712-05B, Sensitivität: 185 mV/A)
+    current_in_amps = (voltage - 2.5) / 0.185  # Offset bei 2.5V
+    
+    # Strombegrenzung für Mapping: maximal 5A
+    max_current = 5.0  # Maximalstrom in Ampere
+    
+    # Map den Stromwert auf 0% bis 100%
+    if current_in_amps < 0:
+        return 0
+    elif current_in_amps > max_current:
+        return 100
+    else:
+        return (current_in_amps / max_current) * 100
 
-def is_within_schedule(schedule_key):
+# Hilfsfunktion zur Überprüfung, ob die aktuelle Zeit innerhalb eines Zeitplans liegt
+def is_within_schedule(component):
     now = datetime.now().time()
-    start_time = datetime.strptime(schedule[schedule_key]["start"], "%H:%M").time()
-    end_time = datetime.strptime(schedule[schedule_key]["end"], "%H:%M").time()
+    start_time = datetime.strptime(schedule[component]['start'], "%H:%M").time()
+    end_time = datetime.strptime(schedule[component]['end'], "%H:%M").time()
     return start_time <= now <= end_time
 
 # Steuerungsfunktionen
@@ -85,19 +105,30 @@ def control_device(component, action):
     if pin:
         GPIO.output(pin, GPIO.HIGH if action == "on" else GPIO.LOW)
 
+def check_soil_moisture(soil_value):
+    water_level = get_water_level()
+    if soil_value < 50 and water_level > 10:
+        GPIO.output(PUMP_PIN, GPIO.LOW)
+        logging.info("Pumpe eingeschaltet (Bodenfeuchtigkeit < 50% und Wassertand > 10%)")
+        time.sleep(240)
+        GPIO.output(PUMP_PIN, GPIO.HIGH)
+        logging.info("Pumpe nach 4 Minuten ausgeschaltet.")
+    else:
+        GPIO.output(PUMP_PIN, GPIO.HIGH)
+        logging.info("Pumpe ausgeschaltet (Bodenfeuchtigkeit >= 50% oder Wasserstand <= 10%)")
+
 # API-Endpunkte
 @app.route('/get_sensordata', methods=['GET'])
 def get_sensordata():
     """Gibt die aktuellen Sensordaten zurück (direkt an die API gesendet)."""
     soil_moisture = get_soil_moisture()
     water_level = get_water_level()
-    temperature, humidity = get_temperature_humidity()
+    power_consumption = get_power_consumption()
 
     data = {
         "water_level": water_level,
-        "temperature": temperature,
-        "humidity": humidity,
-        "soil_moisture": soil_moisture
+        "soil_moisture": soil_moisture,
+        "power_consumption": power_consumption
     }
 
     return jsonify(data)
@@ -153,13 +184,12 @@ def sensor_data_loop():
     while True:
         soil_moisture = get_soil_moisture()
         water_level = get_water_level()
-        temperature, humidity = get_temperature_humidity()
+        power_consumption = get_power_consumption()
 
         data = {
             "water_level": water_level,
-            "temperature": temperature,
-            "humidity": humidity,
-            "soil_moisture": soil_moisture
+            "soil_moisture": soil_moisture,
+            "power_consumption": power_consumption
         }
 
         # Sende die Sensordaten direkt an die API
@@ -170,20 +200,21 @@ def sensor_data_loop():
         except Exception as e:
             logging.error(f"Fehler bei der Verbindung zur API: {e}")
 
-        time.sleep(300)  # Alle 5 Minuten aktualisieren
+        time.sleep(60)  # Jede Minute aktualisieren
 
 def pump_control_loop():
     """Steuerung der Pumpe basierend auf Bodenfeuchtigkeit und Zeitplan."""
     while True:
         if is_within_schedule("pump") and not manual_control["pump"]:  # Nur im Zeitplan und wenn nicht manuell gesteuert
             soil_moisture = get_soil_moisture()
-            if soil_moisture is not None and soil_moisture < 50:
-                control_device("pump", "on")
-                logging.info("Pumpe eingeschaltet (Bodenfeuchtigkeit < 50%)")
-                time.sleep(300)  # Pumpe läuft 5 Minuten
-                control_device("pump", "off")
-                logging.info("Pumpe ausgeschaltet")
-        time.sleep(60)  # Überprüft jede Minute
+            water_level = get_water_level()
+        
+        if water_level > 10:
+            check_soil_moisture(soil_moisture)  # Aufruf der Funktion zur Steuerung der Pumpe
+        else:
+            GPIO.output(PUMP_PIN, GPIO.LOW)
+            logging.info("Pumpe ausgeschaltet")
+        time.sleep(180)  # Überprüft alle 3 Minuten
 
 def fan_control_loop():
     """Automatische Steuerung des Ventilators basierend auf Intervall und Dauer."""
